@@ -1,4 +1,4 @@
-function [global_params, subject_params] = WIN_RS_params(subjects)
+function [global_params, subject_params] = params(subjects)
 
 % sets up various things specific to this analysis
 % You'll be using your own version of this function, so its name will
@@ -40,6 +40,18 @@ function [global_params, subject_params] = WIN_RS_params(subjects)
 % Modified for SPM8 by T. Verstynen, 18 Feb 2010
 % Modified for SPM12 by M Miller, 30 March 2015
 
+% Where the subjects' data directories are stored
+% Defaults to current working directory
+global_params.fdata_root = pwd;
+
+% Can uncomment to set the fdata_root by computer
+%switch computer
+%	case 'MACI64'
+%     		global_params.fdata_root = '/Users/tmoleswo/Data/WIN/';
+%	otherwise
+%		global_params.fdata_root = pwd;
+%end;
+
 all_subjects = {'hcp'};
     
 if nargin < 1
@@ -53,25 +65,14 @@ elseif isnumeric(subjects)
 elseif ischar(subjects)
   subjects = cellstr(subjects); 
 end
-% Where the subjects' data directories are stored
-%global_params.fdata_root = '/data/GroovyTests';
 
-% Here it is defined for the present working directory
-switch computer
-    case 'MACI64'
-     global_params.fdata_root = '/Users/tmoleswo/Data/WIN/';
-    otherwise
-        global_params.fdata_root = '/home/mamille2/data/';
-end;
+
 
 
 % Where the directory tree containing parameters is stored 
 % This could be where you have stored your batch files, some already
 % calculated normalization parameters, reference functions and so on.
 % parameter_root could be the% same as fdata_root above.
-% See the TWiki
-% http://dynevor.hopto.org/twiki/bin/view/IvryImaging/HowtoHummer
-% for more explanation.  
 global_params.parameter_root = fullfile(global_params.fdata_root, ...
     'groovy_batch');
 
@@ -343,7 +344,6 @@ global_params.smooth_opts.fwhm = repmat(4,1,3);
 % Smoothing for normalized images
 global_params.smooth_opts.dtype = 0;
 
-
 % ***************************************************
 % Normalization: Recommend manual parameter estimation
 % ***************************************************
@@ -388,7 +388,7 @@ global_params.normalise_opts.estimate.smorc = 4;
 %  INTERP:  interpolation method (0-7; Default 1-- Trilinear)
 
 % Change the voxel sizes to 1mm
-global_params.normalise_opts.vox = [2 2 2];
+global_params.normalise_opts.vox = [1 1 1];
 
 
 % List of templates for normalization
