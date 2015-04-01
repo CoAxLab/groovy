@@ -1,6 +1,6 @@
 close all; clear all;
 
-[g, s] = WIN_RS_params;
+[g, s] = params;
 
 % Step one: Motion Corection
 groovy_realign(g,s);

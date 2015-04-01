@@ -42,6 +42,10 @@ function [global_params, subject_params] = params(subjects)
 
 % Where the subjects' data directories are stored
 % Defaults to current working directory
+% The full path to a sample unprocessed, uncompressed
+% .nii file is:
+% {global_params.fdata_root}/{subject}/{rs_dir}/{sub_struct.raw_filter}.nii
+
 global_params.fdata_root = pwd;
 
 % Can uncomment to set the fdata_root by computer
@@ -52,7 +56,7 @@ global_params.fdata_root = pwd;
 %		global_params.fdata_root = pwd;
 %end;
 
-all_subjects = {'hcp'};
+all_subjects = {'100307'};
     
 if nargin < 1
   subjects = [];
@@ -66,8 +70,27 @@ elseif ischar(subjects)
   subjects = cellstr(subjects); 
 end
 
+% Scan-specific information
+% Be sure to review and edit:
+%  * nslices
+%  * ntrs
+%  * global_params.slicetime (TR / nslices)
+%  * sub_struct.TR (see below)
+nslices = 72;
+ntrs = 1200;
 
+% ***************************************************
+% Slice Time Correction
+% ***************************************************
+% Because things happen when this changes across subjects, we need to
+% have this defined above so as to push the values into each the subject
+% structure.
 
+% Slice Time Duration: 
+global_params.slicetime = 0.010;
+
+% For Interleaved Acquisition
+acq_order = [1:2:nslices-1 2:2:nslices];
 
 % Where the directory tree containing parameters is stored 
 % This could be where you have stored your batch files, some already
@@ -87,8 +110,6 @@ my_sesses = {...
 
 nsubs = length(subjects);
 nsesses = length(my_sesses);
-nslices = 72;
-ntrs = 210;
 
 % prefixes for processed images (prepended to raw image filter below, in
 % the scripts)
@@ -116,18 +137,6 @@ cov_names = {};
 trial_dur = 1;
 
 
-% ***************************************************
-% Slice Time Correction
-% ***************************************************
-% Because things happen when this changes across subjects, we need to
-% have this defined above so as to push the values into each the subject
-% structure.
-
-% Slice Time Duration: 
-global_params.slicetime = 0.010;
-
-% For Interleaved Acquisition
-acq_order = [1:2:nslices-1 2:2:nslices];
 
 % ***************************************************
 % Physio info
@@ -141,9 +150,15 @@ for sb = 1:nsubs
   sub_dir_f = fullfile(global_params.fdata_root, sub_str);
   
   % Filter for raw image names.
-  rs_dir = 'connport';
+  % rs_dir is where within the subject directory data is stored
+  % Separate multiple directories with a '/'
+  rs_dir = 'preprocess_test/test_subdir'; 
   sub_struct.raw_filter = ['100307_fnca_BOLD_REST2_LR.nii'];
   
+  % TR for each subject.  Sometimes it's different for each subject
+  % but in this case it's the same
+  sub_struct.TR = 0.720;
+
   % image to normalize for this subject
   sub_struct.norm_source = fullfile(sub_dir_f,rs_dir,...
       sprintf('mean%s',sub_struct.raw_filter));
@@ -159,14 +174,10 @@ for sb = 1:nsubs
   %sub_struct.norm_others = fullfile(sub_dir_f,'rest1', ...    
   % 				    sub_str, ...
   % 				    'anatomical.img');
-  
+
   % object mask - usually empty
   sub_struct.obj_mask = '';
   
-  % TR for each subject.  Sometimes it's different for each subject
-  % but in this case it's the same
-  sub_struct.TR = 0.720;
-
   % Contrast information for each subject
   sub_struct.con_mat = con_mat;
   sub_struct.con_names = con_names;
