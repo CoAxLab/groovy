@@ -11,7 +11,12 @@ for s = 1:length(sub_ps) % for each subject
   my_sub = sub_ps(s);
   
   % Get normalization source image
-  subj(s).P = my_sub.norm_source;
+  %subj(s).P = my_sub.norm_source;
+  dirn = fullfile(glob_ps.fdata_root, ...
+		    sub_ps.dir);
+  pfile = spm_select('List', dirn, ['^' sub_ps.raw_filter]);
+  subj(s).P = [dirn filesep 'mean' pfile];
+  %subj(s).P = my_sub.norm_source;
   
   % Make the default normalization parameters file name
   subj(s).matname = [spm_str_manip(subj(s).P,'sd') '_sn.mat'];
@@ -29,7 +34,7 @@ for s = 1:length(sub_ps) % for each subject
   % Because we are going reslice later 
   % We don't reslice anything except the image to be normalized
   subj(s).PP = subj(s).P;      
-  
+  keyboard;
   % call the SPM normalize function to do the work
   spm_normalise(glob_ps.template_images, ...
 		subj(s).P, subj(s).matname,...
