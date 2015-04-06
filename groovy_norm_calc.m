@@ -12,9 +12,8 @@ for s = 1:length(sub_ps) % for each subject
   
   % Get normalization source image
   %subj(s).P = my_sub.norm_source;
-  dirn = fullfile(glob_ps.fdata_root, ...
-		    sub_ps.dir);
-  pfile = spm_select('List', dirn, ['^' sub_ps.raw_filter]);
+  dirn = fullfile(glob_ps.fdata_root, my_sub.dir);
+  pfile = spm_select('List', dirn, ['^' my_sub.raw_filter]);
   subj(s).P = [dirn filesep 'mean' pfile];
   %subj(s).P = my_sub.norm_source;
   
