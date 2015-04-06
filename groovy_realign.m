@@ -37,32 +37,33 @@ for sb = 1:length(sub_ps) % for each subject
     [P Pdir] = spm_select('List', dirn, r_filter);
 	%keyboard;
     imgs(ss) = {[repmat([dirn filesep],size(P,1),1) P]};
-    %imgs{sb}{ss} = strcat(dirn, filesep, P);
+	% Save filename for session inside subject
+    %imgs{sb}{ss} = [dirn{1}, filesep, P];
     % For 4dnii files
-    switch glob_ps.epi_format
-        case '4dnii'
-         vol = spm_vol(fullfile(dirn,P));
+    %switch glob_ps.epi_format
+    %    case '4dnii'
+    %     vol = spm_vol(fullfile(dirn,P));
 
-         try isfield(vol(1),'name');
-             filename = vol(1).name;
-         catch
-             %filename = vol{1,1}(1).fname;
-             filename = vol(1).fname;
-         end;
+    %     try isfield(vol(1),'name');
+    %         filename = vol(1).name;
+    %     catch
+    %         %filename = vol{1,1}(1).fname;
+    %         filename = vol(1).fname;
+    %     end;
 
-         for b = 1:length(vol);
-             file_list{b}=fullfile(dirn,sprintf('%s, %d',filename,b));
-         end;
-         
-         img(ss) = {strvcat(file_list)};
-    end;
+    %     for b = 1:length(vol);
+    %         file_list{b}=fullfile(dirn,sprintf('%s, %d',filename,b));
+    %     end;
+    %     
+    %     img(ss) = {strvcat(file_list)};
+    %end;
     
   end
-keyboard;
+%keyboard;
+end
   
   % Run the realignment
   spm_realign(imgs, reaFlags);
   
   % Run the reslicing
   spm_reslice(imgs, resFlags);
-end
