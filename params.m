@@ -45,6 +45,9 @@ function [global_params, subject_params] = params(subjects)
 % The full path to a sample unprocessed, uncompressed
 % .nii file is:
 % {global_params.fdata_root}/{subject}/{rs_dir}/{sub_struct.raw_filter}.nii
+% Be sure to check:
+%  * rs_dir
+%  * sub_struct.raw_filter
 
 global_params.fdata_root = pwd;
 
@@ -56,7 +59,12 @@ global_params.fdata_root = pwd;
 %		global_params.fdata_root = pwd;
 %end;
 
-all_subjects = {'100307'};
+% If no subject names are specified, defaults to all the directories within
+% the current working directory
+% Get the names of all the directories in the current working directory
+listing = dir();
+all_subjects = {listing([listing.isdir]==1).name};
+all_subjects(1:2) = []; % remove '.' and '..' directories
     
 if nargin < 1
   subjects = [];
@@ -76,8 +84,10 @@ end
 %  * ntrs
 %  * global_params.slicetime (TR / nslices)
 %  * sub_struct.TR (see below)
-nslices = 72;
-ntrs = 1200;
+nslices = 30;
+% Check number of slices using spm_vol
+
+ntrs = 210;
 
 % ***************************************************
 % Slice Time Correction
@@ -87,7 +97,7 @@ ntrs = 1200;
 % structure.
 
 % Slice Time Duration: 
-global_params.slicetime = 0.010;
+global_params.slicetime = 0.051;
 
 % For Interleaved Acquisition
 acq_order = [1:2:nslices-1 2:2:nslices];
@@ -103,6 +113,7 @@ global_params.parameter_root = fullfile(global_params.fdata_root, ...
 my_anat_root = global_params.parameter_root;
 
 % Session directories, in fact same for each subject
+% stored within rs_dir
 my_sesses = {...
     'BOLD_resting_PMU',...
     };
@@ -152,16 +163,22 @@ for sb = 1:nsubs
   % Filter for raw image names.
   % rs_dir is where within the subject directory data is stored
   % Separate multiple directories with a '/'
-  rs_dir = 'preprocess_test/test_subdir'; 
-  sub_struct.raw_filter = ['100307_fnca_BOLD_REST2_LR.nii'];
+  rs_dir = ''; 
+
+  % The filter for files within rs_dir
+  % Make sure the file name includes this pattern
+  sub_struct.raw_filter = ['.{4}_BOLD_resting_PMU.nii'];
+
+	% Find the file that fits the filter
+	pfile = spm_select('List', sub_dir_f, ['^' sub_struct.raw_filter]);
   
   % TR for each subject.  Sometimes it's different for each subject
   % but in this case it's the same
-  sub_struct.TR = 0.720;
+  sub_struct.TR = 1.54;
 
   % image to normalize for this subject
   sub_struct.norm_source = fullfile(sub_dir_f,rs_dir,...
-      sprintf('mean%s',sub_struct.raw_filter));
+      sprintf('mean%s',pfile));
   
   sub_struct.n_trs = ntrs;
   
@@ -169,7 +186,8 @@ for sb = 1:nsubs
   % Other images (in space of structural) to write normalized
   % (epis resliced in anothe write-normalized pass)
   sub_struct.norm_others = fullfile(sub_dir_f,rs_dir,...
-      [global_params.stats_prefix sub_struct.raw_filter]);
+      [global_params.stats_prefix pfile]);
+	keyboard;
   
   %sub_struct.norm_others = fullfile(sub_dir_f,'rest1', ...    
   % 				    sub_str, ...
@@ -188,6 +206,7 @@ for sb = 1:nsubs
         
     % Fill session structure
     % here the directory names are all the same
+    %ss_struct.dir = [my_sesses(ss)]; 
     ss_struct.dir = [rs_dir]; 
     
      % Condition file    
@@ -269,9 +288,18 @@ for sb = 1:nsubs
   
   % Put the slice time in for this subject (Edit here
   % if an error occurs and it is different per subject
-  sub_struct.slice_time = global_params.slicetime;
-  sub_struct.acq_order = acq_order;
+  %sub_struct.slice_time = global_params.slicetime;
+  %sub_struct.acq_order = acq_order;
+	
+	% Calculate slice information with SPM from the file
+	volume_test = spm_vol(fullfile(sub_dir_f, pfile));
+	nslices = volume_test(1).dim(3);
   
+  sub_struct.slice_time = sub_struct.TR./nslices;
+
+ % for interleaved acquisition
+  sub_struct.acq_order  = [1:2:nslices 2:2:nslices];
+
   % Set into returned structure
   subject_params(sb) = sub_struct;
   
