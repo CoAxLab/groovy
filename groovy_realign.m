@@ -58,7 +58,7 @@ for sb = 1:length(sub_ps) % for each subject
     end;
     
   end
-%keyboard;
+keyboard;
   
   % Run the realignment
   spm_realign(imgs, reaFlags);
