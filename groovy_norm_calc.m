@@ -34,7 +34,6 @@ for s = 1:length(sub_ps) % for each subject
   % Because we are going reslice later 
   % We don't reslice anything except the image to be normalized
   subj(s).PP = subj(s).P;      
-  keyboard;
   % call the SPM normalize function to do the work
   spm_normalise(glob_ps.template_images, ...
 		subj(s).P, subj(s).matname,...
