@@ -49,3 +49,13 @@ Other important parameters to review in **params.m** include
 After configuring **params.m**, simply run `batch_preprocess` in MATLAB to 
 preprocess the data. (`batch_preprocess` needs to be in MATLAB's search 
 path).
+
+## Output
+Preprocessed files are placed in the same directory as the input data. Prefixes
+are attached to the filenames to signify that they are the output of a certain
+preprocessing step.
+
+The prefixes:
+* `r{filename}` slice-time corrected
+* `ar{filename}` realigned
+* `war{filename} normalized to MNI space
