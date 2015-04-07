@@ -29,13 +29,13 @@ clear imgs;
 for sb = 1:length(sub_ps) % for each subject
   this_sub = sub_ps(sb);
    r_filter = ['^' glob_ps.realign_prefix this_sub.raw_filter '$'];
-  %r_filter = ['^' glob_ps.realign_prefix this_sub.raw_filter '$'];
 %	clear sess_imgs;
   for ss = 1:length(this_sub.sesses) % and session 
     dirn = fullfile(glob_ps.fdata_root, ...
 		    this_sub.dir, this_sub.sesses(ss).dir);
     [P Pdir] = spm_select('List', dirn, r_filter);
-    imgs(ss) = {[repmat([dirn filesep],size(P,1),1) P]};
+    imgs(1) = {[repmat([dirn filesep],size(P,1),1) P]};
+    %imgs(ss,1) = {[repmat([dirn filesep],size(P,1),1) P]};
 	% Save filename for session inside subject
     %imgs{sb}{ss} = [dirn{1}, filesep, P];
     % For 4dnii files
@@ -57,11 +57,11 @@ for sb = 1:length(sub_ps) % for each subject
     %     img(ss) = {strvcat(file_list)};
     %end;
     
-  end
   
   % Run the realignment
-  spm_realign(imgs, reaFlags);
+  spm_realign(imgs, reaFlags); % imgs is really just one image
   
   % Run the reslicing
-  spm_reslice(imgs, resFlags);
+  spm_reslice(imgs, resFlags); % imgs is really just one image
+	end
 end

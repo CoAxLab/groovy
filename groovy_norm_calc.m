@@ -9,48 +9,40 @@ defs.estimate.weight = '';
 
 for s = 1:length(sub_ps) % for each subject 
   my_sub = sub_ps(s);
-  
-  % Get normalization source image
-  %subj(s).P = my_sub.norm_source;
-  dirn = fullfile(glob_ps.fdata_root, my_sub.dir);
-  pfile = spm_select('List', dirn, ['^' my_sub.raw_filter]);
-  subj(s).P = [dirn filesep 'mean' pfile];
-  %subj(s).P = my_sub.norm_source;
-  
-  % Make the default normalization parameters file name
-  subj(s).matname = [spm_str_manip(subj(s).P,'sd') '_sn.mat'];
-  
-  % Set the object mask for subject
-  subj(s).objmask = my_sub.obj_mask;
-  
-  % set orientation (.mat file) just in case
-  if ~isempty(subj(s).objmask) 
-    spm_get_space(subj(s).objmask, ...
-		  spm_get_space(subj(s).P));
-  end
-  
-  % Get the images we are going to reslice
-  % Because we are going reslice later 
-  % We don't reslice anything except the image to be normalized
-  subj(s).PP = subj(s).P;      
-  % call the SPM normalize function to do the work
-  spm_normalise(glob_ps.template_images, ...
-		subj(s).P, subj(s).matname,...
-		defs.estimate.weight, subj(s).objmask, ...
-		defs.estimate);
-  
-  % Do the reslicing
-  spm_write_sn(subj(s).PP,subj(s).matname,defs.write);
 
+	for ss = 1:length(my_sub.sesses) % for each session
+		sess = my_sub.sesses(ss);
+  
+	  % Get normalization source image
+	  subj_sess(ss).P = sess.norm_source;
+	  %dirn = fullfile(glob_ps.fdata_root, my_sub.dir);
+	  %pfile = spm_select('List', dirn, ['^' my_sub.raw_filter]);
+	  %subj(s).P = [dirn filesep 'mean' pfile];
+	  
+	  % Make the default normalization parameters file name
+	  subj_sess(ss).matname = ...
+		[spm_str_manip(subj_sess(ss).P,'sd') '_sn.mat'];
+	  
+	  % Set the object mask for subject
+	  subj_sess(ss).objmask = my_sub.obj_mask;
+	
+	  % set orientation (.mat file) just in case
+	  if ~isempty(subj_sess(ss).objmask) 
+	    spm_get_space(subj_sess(ss).objmask, ...
+			  spm_get_space(subj_sess(ss).P));
+	  end
+	  
+	  % Get the images we are going to reslice
+	  % Because we are going reslice later 
+	  % We don't reslice anything except the image to be normalized
+	  subj_sess(ss).PP = subj_sess(ss).P;      
+	  % call the SPM normalize function to do the work
+	  spm_normalise(glob_ps.template_images, ...
+			subj_sess(ss).P, subj_sess(ss).matname,...
+			defs.estimate.weight, subj_sess(ss).objmask, ...
+			defs.estimate);
+	  
+	  % Do the reslicing
+	  spm_write_sn(subj_sess(ss).PP,subj_sess(ss).matname,defs.write);
+	end
 end
-
-
-
-
-
-
-
-
-
-
-
