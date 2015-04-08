@@ -9,7 +9,7 @@ for s = 1:length(sub_ps) % for each subject
   subj_dir = fullfile(glob_ps.fdata_root, my_sub.dir);
 	
 	for ss = 1:length(my_sub.sesses) % for each session
-		sess = my_sub.sesses(ss)
+		sess = my_sub.sesses(ss);
   
 	  % Make the default normalization parameters file name
 	  ns = sess.norm_source; 
