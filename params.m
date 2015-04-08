@@ -60,9 +60,8 @@ global_params.fdata_root = pwd;
 %end;
 
 % If no subject names are specified, defaults to all the directories within
-% the current working directory
-% Get the names of all the directories in the current working directory
-listing = dir();
+% global_params.fdata_root
+listing = dir(global_params.fdata_root);
 all_subjects = {listing([listing.isdir]==1).name};
 all_subjects(1:2) = []; % remove '.' and '..' directories
     
@@ -99,7 +98,7 @@ ntrs = 210;
 % structure.
 
 % Slice Time Duration: 
-global_params.slicetime = 0.051;
+%global_params.slicetime = 0.051;
 
 % For Interleaved Acquisition
 acq_order = [1:2:nslices-1 2:2:nslices];
@@ -155,7 +154,7 @@ for sb = 1:nsubs
 
   % Session directories: all directories within subject folders.
 	% If that isn't the case, simply change rs_dir to something
-	% other than my_sesses
+	% other than my_sesses and set my_sesses = ''
   listing = dir(sub_dir_f);
   my_sesses = {listing([listing.isdir]==1).name};
   my_sesses(1:2) = []; % remove '.' and '..' directories
@@ -172,8 +171,7 @@ for sb = 1:nsubs
   sub_struct.raw_filter = ['W\d{3}.*_BOLD_resting_PMU.nii'];
 
   
-  % TR for each subject.  Sometimes it's different for each subject
-  % but in this case it's the same
+  % TR for each subject.
   sub_struct.TR = 1.54;
   sub_struct.n_trs = ntrs;
   
