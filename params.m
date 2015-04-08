@@ -45,6 +45,9 @@ function [global_params, subject_params] = params(subjects)
 % The full path to a sample unprocessed, uncompressed
 % .nii file is:
 % {global_params.fdata_root}/{subject}/{rs_dir}/{sub_struct.raw_filter}.nii
+% Be sure to check:
+%  * rs_dir
+%  * sub_struct.raw_filter
 
 global_params.fdata_root = pwd;
 
@@ -56,7 +59,12 @@ global_params.fdata_root = pwd;
 %		global_params.fdata_root = pwd;
 %end;
 
-all_subjects = {'100307'};
+% If no subject names are specified, defaults to all the directories within
+% the current working directory
+% Get the names of all the directories in the current working directory
+listing = dir();
+all_subjects = {listing([listing.isdir]==1).name};
+all_subjects(1:2) = []; % remove '.' and '..' directories
     
 if nargin < 1
   subjects = [];
@@ -70,14 +78,18 @@ elseif ischar(subjects)
   subjects = cellstr(subjects); 
 end
 
+nsubs = length(subjects);
+
 % Scan-specific information
 % Be sure to review and edit:
 %  * nslices
 %  * ntrs
 %  * global_params.slicetime (TR / nslices)
 %  * sub_struct.TR (see below)
-nslices = 72;
-ntrs = 1200;
+nslices = 30;
+% Check number of slices using spm_vol
+
+ntrs = 210;
 
 % ***************************************************
 % Slice Time Correction
@@ -87,7 +99,7 @@ ntrs = 1200;
 % structure.
 
 % Slice Time Duration: 
-global_params.slicetime = 0.010;
+global_params.slicetime = 0.051;
 
 % For Interleaved Acquisition
 acq_order = [1:2:nslices-1 2:2:nslices];
@@ -102,14 +114,6 @@ global_params.parameter_root = fullfile(global_params.fdata_root, ...
 % Whether to store structural stuff on parameter or fdata root
 my_anat_root = global_params.parameter_root;
 
-% Session directories, in fact same for each subject
-my_sesses = {...
-    'BOLD_resting_PMU',...
-    };
-
-
-nsubs = length(subjects);
-nsesses = length(my_sesses);
 
 % prefixes for processed images (prepended to raw image filter below, in
 % the scripts)
@@ -148,28 +152,30 @@ target_physio = '';  % options 'ECG', 'RESP','PPOLOW','PPOHIGH', 'NONE';
 for sb = 1:nsubs
   sub_str = subjects{sb};
   sub_dir_f = fullfile(global_params.fdata_root, sub_str);
+
+  % Session directories: all directories within subject folders.
+	% If that isn't the case, simply change rs_dir to something
+	% other than my_sesses
+  listing = dir(sub_dir_f);
+  my_sesses = {listing([listing.isdir]==1).name};
+  my_sesses(1:2) = []; % remove '.' and '..' directories
+
+   nsesses = length(my_sesses);
   
-  % Filter for raw image names.
   % rs_dir is where within the subject directory data is stored
   % Separate multiple directories with a '/'
-  rs_dir = 'preprocess_test/test_subdir'; 
-  sub_struct.raw_filter = ['100307_fnca_BOLD_REST2_LR.nii'];
+	% my_sesses will fill with all the subdirectories in subject dirs
+  rs_dir = my_sesses; 
+
+  % The filter for files within rs_dir
+  % Make sure the file name includes this pattern
+  sub_struct.raw_filter = ['W\d{3}.*_BOLD_resting_PMU.nii'];
+
   
   % TR for each subject.  Sometimes it's different for each subject
   % but in this case it's the same
-  sub_struct.TR = 0.720;
-
-  % image to normalize for this subject
-  sub_struct.norm_source = fullfile(sub_dir_f,rs_dir,...
-      sprintf('mean%s',sub_struct.raw_filter));
-  
+  sub_struct.TR = 1.54;
   sub_struct.n_trs = ntrs;
-  
-  
-  % Other images (in space of structural) to write normalized
-  % (epis resliced in anothe write-normalized pass)
-  sub_struct.norm_others = fullfile(sub_dir_f,rs_dir,...
-      [global_params.stats_prefix sub_struct.raw_filter]);
   
   %sub_struct.norm_others = fullfile(sub_dir_f,'rest1', ...    
   % 				    sub_str, ...
@@ -181,77 +187,9 @@ for sb = 1:nsubs
   % Contrast information for each subject
   sub_struct.con_mat = con_mat;
   sub_struct.con_names = con_names;
-  
-  for ss = 1:nsesses
-    % Session structure, within subject structure
-    ss_struct = [];
-        
-    % Fill session structure
-    % here the directory names are all the same
-    ss_struct.dir = [rs_dir]; 
-    
-     % Condition file    
-    ss_struct.ons = {};
-    ss_struct.dur = {};
-    
-    % Contrast information for each subject
-%     sub_struct.contrasts(c).name = con_names{c};
-%     sub_struct.contrasts(c).type = upper(con_type{c});
-%     sub_struct.contrasts(c).con_mat = con_mat{c};
-%   
-    ss_struct.cond_names = cond_names;        
-    ss_struct.covs = [];
-    ss_struct.cov_names = cov_names;
-   
-    switch target_physio
-     case 'NONE'
-      physio_parms = '';
-     case 'ECG+RESP'
-      physio_params = {'ECG','RESP'};
-     otherwise
-      physio_params = {target_physio}; 
-    end;
-    
-    if ~isempty(target_physio)
-      phlem_file = spm_select('List',fullfile(sub_dir_f,ss_struct.dir),...
-			      '^PhysioPhLEM.*mat');
-      
-      if isempty(phlem_file)
-	fprintf(sprintf('Unable to find PhLEM output file in dir:\n \t %s \n RECONSTRUCTING \n',ss_struct.dir))
-	
-	physio_f = dir(fullfile(sub_dir_f,ss_struct.dir,'PhysioLog*.*'));
-	ecg_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(1).name);
-	resp_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(3).name);
-	pulse_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(2).name);
-	
-	
-	PhLEM_setup(fullfile(sub_dir_f,ss_struct.dir,'PhysioPhLEM.mat'),...
-		    'ecgfile',ecg_file,'respfile',resp_file,...
-		    'ppofile',pulse_file);
-	% PhLEM_setup(ecg_file,resp_file,pulse_file);
-	phlem_file = spm_select('List',fullfile(sub_dir_f,ss_struct.dir),...
-				'^PhysioPhLEM.*mat');
-      end;
-      
-      tmp = load(fullfile(sub_dir_f,ss_struct.dir,phlem_file));        
-      PhLEM = tmp.PhLEM;
-      
-      for ph = 1:length(physio_params);    
-	[C names] = make_physio_regressors(physio_params{ph},PhLEM,...
-					   'TR',sub_struct.TR);
-    
-	ss_struct.covs = [ss_struct.covs C];
-	ss_struct.cov_names = {ss_struct.cov_names{:} names{:}};
-      end;
-      
-    end;  
-    
-    % Put into subject structure
-    sub_struct.sesses(ss) = ss_struct;
-  end
 
   % Directory and filter for coreg target image
-  sub_struct.coreg_target_dir = fullfile(sub_dir_f, sub_struct.sesses(1).dir);
+  	sub_struct.coreg_target_dir = sub_dir_f;
   sub_struct.coreg_target_filter = ['mean' sub_struct.raw_filter];
   
   % And to-be-coregistered image
@@ -263,18 +201,145 @@ for sb = 1:nsubs
   % sessions
   sub_struct.coreg_other_dirs = {};
   sub_struct.coreg_other_filter = 'bs*mpflash.img';
-    
+
   % Set the subdirectory for this subject.  This is required 
   sub_struct.dir = sub_str;
+
+	if isfield(sub_struct, 'sesses')
+		sub_struct= rmfield(sub_struct, 'sesses'); % clear sesses struct
+	end
+
+ 	% If have sessions 
+    % Session structure, within subject structure
+	if nsesses
+		for ss = 1:nsesses
+		  ss_struct = [];
+		      
+		  % Fill session structure
+		  % here the directory names are all the same
+		  %ss_struct.dir = [my_sesses(ss)]; 
+		  ss_struct.dir = rs_dir{ss}; 
+
+		  % Find the file that fits the filter
+		  pfile = spm_select('List', fullfile(sub_dir_f, ss_struct.dir), ...
+		      ['^' sub_struct.raw_filter]);
+
+		  % image to normalize for this subject
+		  ss_struct.norm_source = fullfile(sub_dir_f,ss_struct.dir,...
+		    sprintf('mean%s',pfile));  
+
+			% Other images (in space of structural) to write normalized
+			% (epis resliced in anothe write-normalized pass)
+			ss_struct.norm_others = fullfile(sub_dir_f, ss_struct.dir,...
+			    [global_params.stats_prefix pfile]);
+
+		   % Condition file    
+		  ss_struct.ons = {};
+		  ss_struct.dur = {};
+		  
+		  % Contrast information for each subject
+%		    sub_struct.contrasts(c).name = con_names{c};
+%		    sub_struct.contrasts(c).type = upper(con_type{c});
+%		    sub_struct.contrasts(c).con_mat = con_mat{c};
+%		  
+		  ss_struct.cond_names = cond_names;        
+		  ss_struct.covs = [];
+		  ss_struct.cov_names = cov_names;
+		 
+		  switch target_physio
+		   case 'NONE'
+		    physio_parms = '';
+		   case 'ECG+RESP'
+		    physio_params = {'ECG','RESP'};
+		   otherwise
+		    physio_params = {target_physio}; 
+		  end;
+		  
+		  if ~isempty(target_physio)
+		    phlem_file = spm_select('List',fullfile(sub_dir_f,ss_struct.dir),...
+				      '^PhysioPhLEM.*mat');
+		    
+		    if isempty(phlem_file)
+		      fprintf(sprintf('Unable to find PhLEM output file in dir:\n \t %s \n RECONSTRUCTING \n',ss_struct.dir))
+		      
+		      physio_f = dir(fullfile(sub_dir_f,ss_struct.dir,'PhysioLog*.*'));
+		      ecg_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(1).name);
+		      resp_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(3).name);
+		      pulse_file = fullfile(sub_dir_f,ss_struct.dir,physio_f(2).name);
+		      
+		      
+		      PhLEM_setup(fullfile(sub_dir_f,ss_struct.dir,'PhysioPhLEM.mat'),...
+			    'ecgfile',ecg_file,'respfile',resp_file,...
+			    'ppofile',pulse_file);
+		      % PhLEM_setup(ecg_file,resp_file,pulse_file);
+		      phlem_file = spm_select('List',fullfile(sub_dir_f,ss_struct.dir),...
+					'^PhysioPhLEM.*mat');
+		    end;
+		    
+		    tmp = load(fullfile(sub_dir_f,ss_struct.dir,phlem_file));        
+		    PhLEM = tmp.PhLEM;
+		    
+		    for ph = 1:length(physio_params);    
+		      [C names] = make_physio_regressors(physio_params{ph},PhLEM,...
+						   'TR',sub_struct.TR);
+		  
+		      ss_struct.covs = [ss_struct.covs C];
+		      ss_struct.cov_names = {ss_struct.cov_names{:} names{:}};
+		    end;
+		    
+		  end;  
+
+		      % Calculate slice information with SPM from the file
+		      volume_test = spm_vol(fullfile(sub_dir_f, ss_struct.dir, pfile));
+		      nslices = volume_test(1).dim(3);
+		
+		       ss_struct.slice_time = sub_struct.TR./nslices;
+
+		       % for interleaved acquisition
+			% rewritten in groovy_slice.m from realigned image
+			ss_struct.acq_order  = [1:2:nslices 2:2:nslices];
+		  
+		  % Put into subject structure
+		  sub_struct.sesses(ss) = ss_struct;
+		end
+
+	else % Make default session variables for when have no sessions
+		ss_struct.dir = '';
+
+		  % Find the file that fits the filter
+		  pfile = spm_select('List', fullfile(sub_dir_f, ss_struct.dir), ...
+		      ['^' sub_struct.raw_filter]);
+		% Calculate slice information with SPM from the file
+		volume_test = spm_vol(fullfile(sub_dir_f, ss_struct.dir, pfile));
+		nslices = volume_test(1).dim(3);
+		
+		ss_struct.slice_time = sub_struct.TR./nslices;
+
+		% for interleaved acquisition
+		% rewritten in groovy_slice.m from realigned image
+		ss_struct.acq_order  = [1:2:nslices 2:2:nslices];
+
+		  % image to normalize for this subject
+		  ss_struct.norm_source = fullfile(sub_dir_f,ss_struct.dir,...
+		    sprintf('mean%s',pfile));  
+
+			% Other images (in space of structural) to write
+			% normalized (epis resliced in anothe write-normalized 
+			% pass)
+			ss_struct.norm_others = fullfile(sub_dir_f, ss_struct.dir,...
+			    [global_params.stats_prefix pfile]);
+
+		sub_struct.sesses(1) = ss_struct; % put session structure in
+	end
   
   % Put the slice time in for this subject (Edit here
   % if an error occurs and it is different per subject
-  sub_struct.slice_time = global_params.slicetime;
-  sub_struct.acq_order = acq_order;
-  
-  % Set into returned structure
-  subject_params(sb) = sub_struct;
-  
+  %sub_struct.slice_time = global_params.slicetime;
+  %sub_struct.acq_order = acq_order;
+
+	% Set into returned structure
+	  subject_params(sb) = sub_struct;
+
 end
 
 % Setup the Global pointers to use in key preprocessing routines
