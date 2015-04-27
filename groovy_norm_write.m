@@ -45,5 +45,3 @@ for s = 1:length(sub_ps) % for each subject
 	  spm_write_sn(imgs,matname,defs.write);
 	end
 end
-
-

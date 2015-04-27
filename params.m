@@ -467,11 +467,8 @@ global_params.normalise_opts.vox = [1 1 1];
 
 % List of templates for normalization
 % Here, a smoothed grey matter segmentation of MNI brain 
-% Have to determine which version of SPM we're using
-% in order to determine where the template images are
 global_params.template_images = ... 
 	fullfile(spm('Dir'), 'toolbox', 'OldNorm', 'EPI.nii');
-
 
 % ***************************************************
 % GLM Parameters: 
