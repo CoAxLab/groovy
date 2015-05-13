@@ -15,6 +15,9 @@ groovy_norm_write(g,s);
 % Step four: Reslice to atlas
 groovy_reslice_atlas(g,s);
 
+% Clean up intermediate files
+cleanup(g, s);
+
 % Step four: Smooth
 %groovy_smooth(g,s);
 
