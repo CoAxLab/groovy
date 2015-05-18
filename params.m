@@ -45,6 +45,7 @@ function [global_params, subject_params] = params(subjects)
 % The full path to a sample unprocessed, uncompressed
 % .nii file is:
 % {global_params.fdata_root}/{subject}/{rs_dir}/{sub_struct.raw_filter}.nii
+% subjects can be provided or chosen automatically through filters
 % Be sure to check:
 %  * rs_dir
 %  * sub_struct.raw_filter
@@ -60,20 +61,23 @@ global_params.fdata_root = pwd;
 %end;
 
 % If no subject names are specified, defaults to all the directories within
-% global_params.fdata_root
-global_params.subj_filter = '.*'
-%listing = dir(global_params.fdata_root);
-listing = ...
-	spm_select('List', global_params.fdata_root, global_params.subj_filter)
-all_subjects = {listing([listing.isdir]==1).name};
-all_subjects(1:2) = []; % remove '.' and '..' directories
+% global_params.fdata_root, filtered by subj_filter, regular expression
+global_params.subj_filter = 'sub\d+';
+
+listing = dir(global_params.fdata_root);
+dirs = {listing([listing.isdir]==1).name}; % Get all directories
+for idx = length(dirs):-1:1 % Filter directories by subj_filter
+	if isempty(regexp(dirs{idx}, 'sub\d+'))
+		dirs(idx) = [];
+	end
+end
     
 if nargin < 1
   subjects = [];
 end
 
 if isempty(subjects)
-  subjects = all_subjects;
+  subjects = dirs;
 elseif isnumeric(subjects)
   subjects = all_subjects(subjects);
 elseif ischar(subjects)
@@ -116,7 +120,6 @@ global_params.parameter_root = fullfile(global_params.fdata_root, ...
 % Whether to store structural stuff on parameter or fdata root
 my_anat_root = global_params.parameter_root;
 
-
 % prefixes for processed images (prepended to raw image filter below, in
 % the scripts)
 global_params.st_prefix = 'r';  
@@ -155,23 +158,26 @@ for sb = 1:nsubs
   sub_str = subjects{sb};
   sub_dir_f = fullfile(global_params.fdata_root, sub_str);
 
+  % rs_dir is where within the subject directory data is stored
+  % Separate multiple directories with a '/'
+	% my_sesses will fill with all the subdirectories in subject dirs
+  rs_dir = 'BOLD';
+
   % Session directories: all directories within subject folders.
 	% If that isn't the case, simply change rs_dir to something
 	% other than my_sesses and set my_sesses = ''
-  listing = dir(sub_dir_f);
+
+	%listing = dir([sub_dir_f])
+	% Comment above line and uncomment below if my_sesses is beneath rs_dir
+  listing = dir([sub_dir_f filesep rs_dir]);
   my_sesses = {listing([listing.isdir]==1).name};
   my_sesses(1:2) = []; % remove '.' and '..' directories
 
    nsesses = length(my_sesses);
-  
-  % rs_dir is where within the subject directory data is stored
-  % Separate multiple directories with a '/'
-	% my_sesses will fill with all the subdirectories in subject dirs
-  rs_dir = my_sesses; 
 
   % The filter for files within rs_dir
   % Make sure the file name includes this pattern
-  sub_struct.raw_filter = ['W\d{3}.*_BOLD_resting_PMU.nii'];
+  sub_struct.raw_filter = ['bold.nii'];
 
   
   % TR for each subject.
@@ -204,7 +210,7 @@ for sb = 1:nsubs
   sub_struct.coreg_other_filter = 'bs*mpflash.img';
 
   % Set the subdirectory for this subject.  This is required 
-  sub_struct.dir = sub_str;
+  sub_struct.dir = [sub_str filesep rs_dir];
 
 	if isfield(sub_struct, 'sesses')
 		sub_struct= rmfield(sub_struct, 'sesses'); % clear sesses struct
@@ -219,19 +225,52 @@ for sb = 1:nsubs
 		  % Fill session structure
 		  % here the directory names are all the same
 		  %ss_struct.dir = [my_sesses(ss)]; 
-		  ss_struct.dir = rs_dir{ss}; 
+		  ss_struct.dir = my_sesses{ss}; 
+			filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir);
 
 		  % Find the file that fits the filter
-		  pfile = spm_select('List', fullfile(sub_dir_f, ss_struct.dir), ...
-		      ['^' sub_struct.raw_filter]);
+			%if class(rs_dir) ~= 'char'
+			  %pfile = spm_select('List', fullfile(sub_dir_f, ss_struct.dir), ...
+				  %['^' sub_struct.raw_filter]);
+			%else
+				pfile = spm_select(...
+							'List', filepath,['^' sub_struct.raw_filter '$']);
+				compressed = spm_select('List', filepath,...
+								 ['^' sub_struct.raw_filter '.gz']);
+
+			if size(pfile, 1) > 1
+				disp(sprintf('%i NIFTI file found in a session. Only 1 allowed'))
+			end
+			
+			% Uncompress NIFTIs if compressed
+			for idx = 1:size(compressed, 1)
+				filename = compressed(idx, :);
+				filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir, ...
+										filename);
+				[pathstr name ext] = fileparts(filename);
+				if strcmp(ext, '.gz')
+					already_unzipped = 0;
+					for pidx = 1:size(pfile, 1) % Check if already unzipped
+						if ~strcmp([pfile(1,pidx) '.gz'], compressed(1,:))
+							already_unzipped = 1;
+						end
+					end
+					if ~already_unzipped
+						gunzip(filepath);
+						dirpath = fullfile(sub_dir_f, rs_dir, ss_struct.dir);
+						pfile = spm_select(...
+							'List', dirpath,['^' sub_struct.raw_filter '$']);
+					end
+				end
+			end
 
 		  % image to normalize for this subject
-		  ss_struct.norm_source = fullfile(sub_dir_f,ss_struct.dir,...
+		  ss_struct.norm_source = fullfile(sub_dir_f,rs_dir, ss_struct.dir,...
 		    sprintf('mean%s',pfile));  
 
 			% Other images (in space of structural) to write normalized
-			% (epis resliced in anothe write-normalized pass)
-			ss_struct.norm_others = fullfile(sub_dir_f, ss_struct.dir,...
+			% (epis resliced in another write-normalized pass)
+			ss_struct.norm_others = fullfile(sub_dir_f, rs_dir, ss_struct.dir,...
 			    [global_params.stats_prefix pfile]);
 
 		   % Condition file    
@@ -291,7 +330,12 @@ for sb = 1:nsubs
 		  end;  
 
 		      % Calculate slice information with SPM from the file
-		      volume_test = spm_vol(fullfile(sub_dir_f, ss_struct.dir, pfile));
+			filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir, pfile);
+			[pathstr name ext] = fileparts(filepath);
+			%if strcmp(ext, '.gz')
+			%	gunzip(filepath);
+			%	filepath = [pathstr name];
+		      volume_test = spm_vol(filepath);
 		      nslices = volume_test(1).dim(3);
 		
 		       ss_struct.slice_time = sub_struct.TR./nslices;
@@ -308,10 +352,36 @@ for sb = 1:nsubs
 		ss_struct.dir = '';
 
 		  % Find the file that fits the filter
-		  pfile = spm_select('List', fullfile(sub_dir_f, ss_struct.dir), ...
-		      ['^' sub_struct.raw_filter]);
+		  pfile = spm_select('List', fullfile(sub_dir_f, rs_dir), ...
+		      ['^' sub_struct.raw_filter '$']);
+		compressed = spm_select('List', filepath,...
+							 ['^' sub_struct.raw_filter '.gz']);
+
 		% Calculate slice information with SPM from the file
-		volume_test = spm_vol(fullfile(sub_dir_f, ss_struct.dir, pfile));
+			filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir, pfile);
+			[pathstr name ext] = fileparts(filepath)
+
+			% Uncompress NIFTIs if compressed
+			for idx = 1:size(compressed, 1)
+				filename = compressed(idx, :);
+				filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir, ...
+										filename);
+				[pathstr name ext] = fileparts(filename);
+				if strcmp(ext, '.gz')
+					already_unzipped = 0;
+					for pidx = 1:size(pfile, 1) % Check if already unzipped
+						if ~strcmp([pfile(1,pidx) '.gz'], compressed(1,:))
+							already_unzipped = 1;
+						end
+					end
+					if ~already_unzipped
+						gunzip(filepath);
+						pfile = spm_select(...
+							'List', filepath,['^' sub_struct.raw_filter '$']);
+					end
+				end
+			end
+		volume_test = spm_vol(filepath);
 		nslices = volume_test(1).dim(3);
 		
 		ss_struct.slice_time = sub_struct.TR./nslices;
