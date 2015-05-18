@@ -61,7 +61,10 @@ global_params.fdata_root = pwd;
 
 % If no subject names are specified, defaults to all the directories within
 % global_params.fdata_root
-listing = dir(global_params.fdata_root);
+global_params.subj_filter = '.*'
+%listing = dir(global_params.fdata_root);
+listing = ...
+	spm_select('List', global_params.fdata_root, global_params.subj_filter)
 all_subjects = {listing([listing.isdir]==1).name};
 all_subjects(1:2) = []; % remove '.' and '..' directories
     

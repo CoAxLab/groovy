@@ -17,8 +17,8 @@ for s = 1:length(sub_ps) % for each subject
 			if isempty(regexp(filename, filter))
 				filepath = strtrim([dirn filesep filename]);
 				delete(filepath)
-				msg = sprintf('Deleted %s', filepath)
-				disp(msg)
+				%msg = sprintf('Deleted %s', filepath);
+				%disp(msg)
 			end
 		end
 	end
