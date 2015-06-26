@@ -52,6 +52,10 @@ function [global_params, subject_params] = params(subjects)
 
 global_params.fdata_root = pwd;
 
+% If the data needs the Human Connectome Project (HCP) gradient distortion
+% correction (HCP gradunwarp)
+global_params.gradunwarp = 0;
+
 % Can uncomment to set the fdata_root by computer
 %switch computer
 %	case 'MACI64'
@@ -62,12 +66,18 @@ global_params.fdata_root = pwd;
 
 % If no subject names are specified, defaults to all the directories within
 % global_params.fdata_root, filtered by subj_filter, regular expression
-global_params.subj_filter = 'sub\d+';
+global_params.subj_filter = '.*';
 
 listing = dir(global_params.fdata_root);
 dirs = {listing([listing.isdir]==1).name}; % Get all directories
+% remove . and .. dirs
+for k = length(dirs):-1:1
+	if strcmp(dirs{k}, '.') | strcmp(dirs{k},'..')
+		dirs(k) = [];
+	end
+end
 for idx = length(dirs):-1:1 % Filter directories by subj_filter
-	if isempty(regexp(dirs{idx}, 'sub\d+'))
+	if isempty(regexp(dirs{idx}, global_params.subj_filter))
 		dirs(idx) = [];
 	end
 end
@@ -90,9 +100,8 @@ nsubs = length(subjects);
 % Be sure to review and edit:
 %  * nslices
 %  * ntrs
-%  * global_params.slicetime (TR / nslices)
 %  * sub_struct.TR (see below)
-nslices = 30;
+nslices = 32;
 % Check number of slices using spm_vol
 
 ntrs = 210;
@@ -161,7 +170,7 @@ for sb = 1:nsubs
   % rs_dir is where within the subject directory data is stored
   % Separate multiple directories with a '/'
 	% my_sesses will fill with all the subdirectories in subject dirs
-  rs_dir = 'BOLD';
+  rs_dir = '';
 
   % Session directories: all directories within subject folders.
 	% If that isn't the case, simply change rs_dir to something
@@ -175,13 +184,13 @@ for sb = 1:nsubs
 
    nsesses = length(my_sesses);
 
-  % The filter for files within rs_dir
+  % The regular expression filter for files within rs_dir
   % Make sure the file name includes this pattern
   sub_struct.raw_filter = ['bold.nii'];
 
   
   % TR for each subject.
-  sub_struct.TR = 1.54;
+  sub_struct.TR = 2;
   sub_struct.n_trs = ntrs;
   
   %sub_struct.norm_others = fullfile(sub_dir_f,'rest1', ...    
@@ -354,13 +363,13 @@ for sb = 1:nsubs
 		  % Find the file that fits the filter
 		  pfile = spm_select('List', fullfile(sub_dir_f, rs_dir), ...
 		      ['^' sub_struct.raw_filter '$']);
-		compressed = spm_select('List', filepath,...
-							 ['^' sub_struct.raw_filter '.gz']);
 
 		% Calculate slice information with SPM from the file
 			filepath = fullfile(sub_dir_f, rs_dir, ss_struct.dir, pfile);
-			[pathstr name ext] = fileparts(filepath)
+			[pathstr name ext] = fileparts(filepath);
 
+		compressed = spm_select('List', filepath,...
+							 ['^' sub_struct.raw_filter '.gz']);
 			% Uncompress NIFTIs if compressed
 			for idx = 1:size(compressed, 1)
 				filename = compressed(idx, :);
