@@ -67,4 +67,4 @@ preprocessing step.
 The prefixes:
 * `r{filename}` slice-time corrected
 * `ar{filename}` realigned
-* `war{filename} normalized to MNI space
+* `war{filename}` normalized to MNI space
