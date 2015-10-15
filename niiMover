@@ -24,6 +24,7 @@ test=0
 if [[ "$1" == '-t' ]]
 then
 	test=1
+	# remove -t, the next paramater should be a directory
 	shift
 fi
 
@@ -34,27 +35,33 @@ fi
 # select the leading numbers from the file name
 regex='(^[0-9]+)*'
 
-# for all files in the path passed into the script
-for file_name in $(ls $1)
-do
-    # if there is a match
-    if [[ $file_name =~ $regex ]]
-    then
-	# directory name to create and file to move into it
-	newDir=$(printf "$1/sub%06d/\n" ${BASH_REMATCH[1]})
-	fq_fn="$1/$file_name"
+if [ -d "$1" ]
+then
+
+    # for all files in the path passed into the script
+    for file_name in $(ls $1)
+    do
+        # if there is a match
+        if [[ $file_name =~ $regex ]]
+        then
+	    # directory name to create and file to move into it
+	    newDir=$(printf "$1/sub%06d/\n" ${BASH_REMATCH[1]})
+	    fq_fn="$1/$file_name"
 	
-	if [[ $test -eq 1 ]]
-	then
-	    # test: jsut show what would be done
-            echo "$fq_fn --> $newDir"
-	else
-	    # create directory and move file
-	    mkdir $newDir
-            mv $fq_fn $newDir
-	fi
-    else
-	# warn that there is something in the directory that doesnt match
-        echo "** $1 does not match regular expression, skipping"
-    fi
-done
+	    if [[ $test -eq 1 ]]
+	    then
+	       # test: jsut show what would be done
+                echo "$fq_fn --> $newDir"
+	    else
+	        # create directory and move file
+	        mkdir $newDir
+                mv $fq_fn $newDir
+	    fi
+        else
+	    # warn that there is something in the directory that doesnt match
+            echo "** $1 does not match regular expression, skipping"
+        fi
+    done
+else
+    echo "ERROR: $1 is not a directory or does not exist"
+fi
