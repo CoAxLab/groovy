@@ -68,3 +68,6 @@ The prefixes:
 * `r{filename}` slice-time corrected
 * `ar{filename}` realigned
 * `war{filename}` normalized to MNI space
+
+## NOTE
+If MATLAB displays an error containing "cannot load any more object with static TLS", try increasing the Java heap memory to the maximum amount (Home>Preferences>General>Java Heap Memory>Java Heap Size) and then restart MATLAB
